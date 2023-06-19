@@ -24,21 +24,35 @@ io.on('connection', (socket) => {
 
     console.log(`User ${payload.username} created room ${roomName}`);
 
-    socket.emit('roomCreated', {roomName});
+    socket.emit('roomCreated', {roomName, username: payload.username});
   });
 
   socket.on('joinRoom', (payload) => {
+    console.log('PAYLOAD', payload);
     const roomName = payload.roomName;
     if(roomName && rooms[roomName]) {
       socket.join(roomName);
       rooms[roomName].push(socket.id);
       console.log(`User ${payload.username} joined room ${roomName}`);
-      socket.emit('roomJoined', { roomName });
+      socket.emit('roomJoined', payload);
     } else {
       console.log(`Room ${roomName} does not exist.`);
     }
   });
+
+  socket.on('message', (payload) => {
+    const roomName = payload.roomName;
+    const message = payload.message;
+    const username = payload.username;
+
+    io.to(roomName).emit('message', { username, message });
+  });
+
+  socket.on('leaveChat', (payload) => {
+    socket.emit('roomMenu', payload);
+  });
 });
+
 
 const generateRoomName = () => {
   const characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';

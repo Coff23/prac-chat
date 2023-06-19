@@ -3,6 +3,9 @@
 const io = require('socket.io-client');
 const inquirer = require('inquirer');
 const socket = io('http://localhost:3001');
+const readline = require('readline');
+
+let currentRoom = '';
 
 socket.on('start', () => {
   inquirer.prompt([
@@ -33,15 +36,19 @@ socket.on('roomMenu', (payload) => {
     },
   ]).then((answer) => {
     const selectedOption = answer.roomChoice;
-    payload.room = selectedOption;
+    const roomPayload = { ...payload };
+    roomPayload.room = selectedOption;
+
     switch (selectedOption) {
     case 1:
       console.log('Chat with friends');
-      socket.emit('friends', payload);
+      roomPayload.room = selectedOption;
+      socket.emit('friends', roomPayload);
       break;
     case 2:
       console.log('Chat with anyone');
-      socket.emit('anyone', payload);
+      roomPayload.room = selectedOption;
+      socket.emit('anyone', roomPayload);
       break;
     case 3:
       inquirer.prompt([
@@ -51,10 +58,11 @@ socket.on('roomMenu', (payload) => {
           message: 'Enter room name:',
         },
       ]).then((answer) => {
-        const payload = {
+        const joinPayload = {
+          ...payload,
           roomName: answer.roomName,
         };
-        socket.emit('joinRoom', payload);
+        socket.emit('joinRoom', joinPayload);
       });
     }
   });
@@ -62,5 +70,41 @@ socket.on('roomMenu', (payload) => {
 
 socket.on('roomCreated', (payload) => {
   const roomName = payload.roomName;
+  currentRoom = roomName;
   console.log(`You have created a room with the name ${roomName}`);
+  const joinPayload = {
+    ...payload,
+    username: payload.username,
+  };
+  socket.emit('joinRoom', joinPayload);
+});
+
+socket.on('roomJoined', (payload) => {
+  const roomName = payload.roomName;
+  currentRoom = roomName;
+  console.log(`You have joined room ${roomName}`);
+  startChat(payload.username);
+});
+
+function startChat(username){
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  rl.on('line', (input) => {
+    const message = input.trim();
+    if(message.toLowerCase() === 'exit') {
+      socket.emit('leaveChat', { username: username });
+      rl.close();
+      return;
+    }
+    else {
+      socket.emit('message', { roomName: currentRoom, username: username, message });
+    }
+  });
+}
+
+socket.on('message', (payload) => {
+  console.log(`${payload.username}: ${payload.message}`);
 });
