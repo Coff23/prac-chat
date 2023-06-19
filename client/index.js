@@ -5,7 +5,7 @@ const inquirer = require('inquirer');
 const socket = io('http://localhost:3001');
 
 socket.on('start', () => {
-  inquirer.createPromptModule([
+  inquirer.prompt([
     {
       name: 'name',
       type: 'input',
@@ -20,14 +20,15 @@ socket.on('start', () => {
 });
 
 socket.on('roomMenu', (payload) => {
-  inquirer.createPromptModule([
+  inquirer.prompt([
     {
       name: 'roomChoice',
       type: 'rawlist',
       message: 'Please select a chat room!',
       choices: [
-        { name: 'Chat with friends', value: 1 },
+        { name: 'Create Room', value: 1 },
         { name: 'Chat with anyone', value: 2 },
+        { name: 'Join Room', value:3 },
       ],
     },
   ]).then((answer) => {
@@ -41,6 +42,20 @@ socket.on('roomMenu', (payload) => {
     case 2:
       console.log('Chat with anyone');
       socket.emit('anyone', payload);
+      break;
+    case 3:
+      inquirer.prompt([
+        {
+          name: 'roomName',
+          type: 'input',
+          message: 'Enter room name:',
+        },
+      ]).then((answer) => {
+        const payload = {
+          roomName: answer.roomName,
+        };
+        socket.emit('joinRoom', payload);
+      });
     }
   });
 });

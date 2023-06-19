@@ -2,9 +2,11 @@
 
 require('dotenv').config();
 
+const http = require('http').createServer();
 const { Server } = require('socket.io');
+const io = new Server(http);
+
 const PORT = process.env.PORT || 3002;
-const io = new Server(PORT);
 
 const rooms = {};
 
@@ -24,6 +26,18 @@ io.on('connection', (socket) => {
 
     socket.emit('roomCreated', {roomName});
   });
+
+  socket.on('joinRoom', (payload) => {
+    const roomName = payload.roomName;
+    if(roomName && rooms[roomName]) {
+      socket.join(roomName);
+      rooms[roomName].push(socket.id);
+      console.log(`User ${payload.username} joined room ${roomName}`);
+      socket.emit('roomJoined', { roomName });
+    } else {
+      console.log(`Room ${roomName} does not exist.`);
+    }
+  });
 });
 
 const generateRoomName = () => {
@@ -35,7 +49,14 @@ const generateRoomName = () => {
   return roomName;
 };
 
+function startServer() {
+  http.listen(PORT, () => {
+    console.log(`Server listening on port ${PORT}`);
+  });
+}
+
 // EXPORTS
 module.exports = {
   io,
+  start: startServer,
 };
